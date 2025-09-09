@@ -22,10 +22,10 @@ public class RoutineGeneratorService {
 
   public GenerateResponse generate(GenerateRequest req) {
 
-    if(req.profile == null) throw new IllegalArgumentException("Profile required");
+    if(req.profile == null) throw new IllegalArgumentException("Se requiere un perfil");
     int weeks = req.profile.durationWeeks == null ? 4 : req.profile.durationWeeks;
-    String split = req.profile.split == null ? "fullbody" : req.profile.split;
-    String goal = req.profile.goal == null ? "hipertrofia" : req.profile.goal;
+    String split = req.profile.split == null ? "Fullbody" : req.profile.split;
+    String goal = req.profile.goal == null ? "Hipertrofia" : req.profile.goal;
     int daysPerWeek = determineDaysPerWeek(split);
 
 
@@ -61,7 +61,7 @@ public class RoutineGeneratorService {
           } else if("resistencia".equalsIgnoreCase(goal)) {
             item.sets = 3;
             item.reps = "15-20";
-            item.weightFormula = "bodyweight or light";
+            item.weightFormula = "Peso corporal o ligero";
           } else {
             item.sets = 3;
             item.reps = "8-12";

@@ -9,9 +9,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api")
 public class RoutineGeneratorController {
-
-<<<<<<< HEAD
-=======
     private final RoutineGeneratorService generator;
 
     public RoutineGeneratorController(RoutineGeneratorService generator) {
@@ -30,5 +27,4 @@ public class RoutineGeneratorController {
         GenerateResponse resp = generator.generate(req);
         return ResponseEntity.ok(resp);
     }
->>>>>>> 5a5b5cb1d7626faf7b620491c8aa496d5a3d416c
 }
