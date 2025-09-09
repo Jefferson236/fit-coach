@@ -3,6 +3,7 @@ package com.tuorg.calcservice.dto;
 import java.util.List;
 
 public class GenerateResponse {
+<<<<<<< HEAD
   public String routineId;
   public List<WeekDto> weeks;
   public static class WeekDto {
@@ -21,4 +22,9 @@ public class GenerateResponse {
     public String weightFormula;
     public String notes;
   }
+=======
+    public RoutineDto routine;
+    public String message;   // opcional
+    public long generatedAt; // timestamp
+>>>>>>> 5a5b5cb1d7626faf7b620491c8aa496d5a3d416c
 }

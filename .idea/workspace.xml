@@ -4,7 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="cca53fe8-9f21-4bc9-88a2-ef690c1af7f5" name="Changes" comment="" />
+    <list default="true" id="cca53fe8-9f21-4bc9-88a2-ef690c1af7f5" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/HealthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/HealthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/RoutineGeneratorController.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/RoutineGeneratorController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/ExerciseDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/ExerciseDto.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/GenerateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/GenerateRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/GenerateResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/GenerateResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/RoutineDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/RoutineDto.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -21,6 +31,7 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
+<<<<<<< HEAD
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -51,6 +62,19 @@
       </set>
     </attachedChunks>
   </component>
+=======
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+>>>>>>> 5a5b5cb1d7626faf7b620491c8aa496d5a3d416c
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
