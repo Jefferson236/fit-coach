@@ -6,5 +6,5 @@ public class ExerciseDto {
     public String name;
     public String group;
     public String difficulty;
-    // opcionales: equipment, youtubeId
+
 }

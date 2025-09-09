@@ -7,9 +7,9 @@ public class ProfileDto {
     public String sex;
     public Double weight;
     public Integer heightCm;
-    public String level; // beginner|intermediate|advanced
-    public String goal;  // fuerza|hipertrofia|resistencia
-    public String split; // fullbody|upper-lower|push-pull-legs
+    public String level;
+    public String goal;
+    public String split;
     public Integer durationWeeks;
     public String registrationDate;
 }
