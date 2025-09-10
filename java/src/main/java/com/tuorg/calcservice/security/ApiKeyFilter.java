@@ -20,29 +20,46 @@ public class ApiKeyFilter implements Filter {
 
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-      throws IOException, ServletException {
+          throws IOException, ServletException {
 
     HttpServletRequest req = (HttpServletRequest) request;
+    HttpServletResponse resp = (HttpServletResponse) response;
+
+    // Permitir preflight CORS sin validación
+    if ("OPTIONS".equalsIgnoreCase(req.getMethod())) {
+      // Responder cabeceras CORS básicas para preflight
+      resp.setHeader("Access-Control-Allow-Origin", "*");
+      resp.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+      resp.setHeader("Access-Control-Allow-Headers", "Content-Type, X-API-KEY");
+      resp.setHeader("Access-Control-Max-Age", "3600");
+      chain.doFilter(request, response);
+      return;
+    }
+
+    String path = req.getRequestURI();
+    if (path.startsWith("/api/ping") || path.startsWith("/actuator")) {
+      chain.doFilter(request, response);
+      return;
+    }
+
     String apiKey = req.getHeader(headerName);
     String expected = env.getProperty("app.api.key", "");
 
-
-    String path = req.getRequestURI();
-    if(path.startsWith("/api/ping") || path.startsWith("/actuator")) {
-      chain.doFilter(request, response);
+    if (expected == null || expected.isEmpty()) {
+      resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "API key not configured");
       return;
     }
 
-    if(expected == null || expected.isEmpty()) {
-      ((HttpServletResponse) response).sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "API key not configured");
-      return;
-    }
-
-    if(expected.equals(apiKey)) {
+    if (expected.equals(apiKey)) {
       chain.doFilter(request, response);
     } else {
-      ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+      resp.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
     }
   }
-}
 
+  @Override
+  public void init(FilterConfig filterConfig) throws ServletException { /* no-op */ }
+
+  @Override
+  public void destroy() { /* no-op */ }
+}
