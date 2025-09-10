@@ -5,19 +5,28 @@ import org.springframework.stereotype.Service;
 @Service
 public class CalculadoraServiceImpl implements CalculadoraService {
 
-    /**
-     * Epley formula: 1RM ≈ weight * (1 + reps/30)
-     * (suficiente como stub; reemplaza con la fórmula que prefieras)
-     */
     @Override
-    public double estimateOneRepMax(double weight, int reps) {
-        if (reps <= 0) return weight;
-        return weight * (1.0 + reps / 30.0);
+    public int recommendedSets(String goal) {
+        if ("fuerza".equalsIgnoreCase(goal)) return 5;
+        if ("resistencia".equalsIgnoreCase(goal)) return 3;
+        return 3; // hipertrofia por defecto
     }
 
     @Override
-    public double weightFromPercentage(double oneRepMax, double percentage) {
-        if (Double.isNaN(oneRepMax) || percentage <= 0) return 0;
-        return oneRepMax * percentage;
+    public String recommendedReps(String goal) {
+        if ("fuerza".equalsIgnoreCase(goal)) return "3-5";
+        if ("resistencia".equalsIgnoreCase(goal)) return "15-20";
+        return "8-12"; // hipertrofia
+    }
+
+    @Override
+    public String recommendedWeight(String goal, String exerciseName) {
+        if ("fuerza".equalsIgnoreCase(goal)) {
+            return "≈85% de 1RM";
+        } else if ("resistencia".equalsIgnoreCase(goal)) {
+            return "Peso corporal o ligero";
+        } else {
+            return "≈60% de 1RM";
+        }
     }
 }

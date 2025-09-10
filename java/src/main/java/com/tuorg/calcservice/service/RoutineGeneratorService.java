@@ -21,52 +21,51 @@ public class RoutineGeneratorService {
   }
 
   public GenerateResponse generate(GenerateRequest req) {
+    if (req.profile == null) throw new IllegalArgumentException("Se requiere un perfil");
 
-    if(req.profile == null) throw new IllegalArgumentException("Se requiere un perfil");
     int weeks = req.profile.durationWeeks == null ? 4 : req.profile.durationWeeks;
     String split = req.profile.split == null ? "Fullbody" : req.profile.split;
     String goal = req.profile.goal == null ? "Hipertrofia" : req.profile.goal;
     int daysPerWeek = determineDaysPerWeek(split);
 
-
+    // Agrupar ejercicios
     Map<String, List<ExerciseDto>> byGroup = new HashMap<>();
-    if(req.exercises != null) {
-      for(ExerciseDto e : req.exercises) {
-        byGroup.computeIfAbsent(e.group == null ? "General" : e.group, k -> new ArrayList<>()).add(e);
+    if (req.exercises != null) {
+      for (ExerciseDto e : req.exercises) {
+        byGroup.computeIfAbsent(
+                e.group == null ? "General" : e.group,
+                k -> new ArrayList<>()
+        ).add(e);
       }
     }
 
     GenerateResponse resp = new GenerateResponse();
     resp.weeks = new ArrayList<>();
 
-    for(int w=1; w<=weeks; w++){
+    // Generar semanas y días
+    for (int w = 1; w <= weeks; w++) {
       WeekDto week = new WeekDto();
       week.week = w;
       week.days = new ArrayList<>();
-      for(int d=1; d<=daysPerWeek; d++){
+
+      for (int d = 1; d <= daysPerWeek; d++) {
         DayDto day = new DayDto();
         day.dayOfWeek = d;
         day.items = new ArrayList<>();
 
-        List<ExerciseDto> candidates = pickExercisesForDay(byGroup, d, req.options != null ? req.options.maxPerDay : 5);
-        for(ExerciseDto e : candidates) {
+        List<ExerciseDto> candidates =
+                pickExercisesForDay(byGroup, d, req.options != null ? req.options.maxPerDay : 5);
+
+        for (ExerciseDto e : candidates) {
           ItemDto item = new ItemDto();
           item.exerciseId = e.id;
           item.exerciseName = e.name;
 
-          if("fuerza".equalsIgnoreCase(goal)) {
-            item.sets = 5;
-            item.reps = "3-5";
-            item.weightFormula = "0.85*1RM";
-          } else if("resistencia".equalsIgnoreCase(goal)) {
-            item.sets = 3;
-            item.reps = "15-20";
-            item.weightFormula = "Peso corporal o ligero";
-          } else {
-            item.sets = 3;
-            item.reps = "8-12";
-            item.weightFormula = "0.6*1RM";
-          }
+          // 🔹 Ahora sí usamos CalculadoraService para generar sets, reps y peso
+          item.sets = calc.recommendedSets(goal);
+          item.reps = calc.recommendedReps(goal);
+          item.weightFormula = calc.recommendedWeight(goal, e.name);
+
           day.items.add(item);
         }
         week.days.add(day);
@@ -78,12 +77,16 @@ public class RoutineGeneratorService {
   }
 
   private int determineDaysPerWeek(String split) {
-    if(split == null) return 3;
-    switch(split.toLowerCase()) {
-      case "fullbody": return 3;
-      case "upper-lower": return 4;
-      case "push-pull-legs": return 3;
-      default: return 3;
+    if (split == null) return 3;
+    switch (split.toLowerCase()) {
+      case "fullbody":
+        return 3;
+      case "upper-lower":
+        return 4;
+      case "push-pull-legs":
+        return 3;
+      default:
+        return 3;
     }
   }
 
@@ -91,9 +94,10 @@ public class RoutineGeneratorService {
     int limit = (maxPerDay == null) ? 5 : Math.max(3, maxPerDay);
 
     List<ExerciseDto> all = byGroup.values().stream().flatMap(List::stream).collect(Collectors.toList());
-    if(all.isEmpty()) return Collections.emptyList();
+    if (all.isEmpty()) return Collections.emptyList();
+
     List<ExerciseDto> out = new ArrayList<>();
-    for(int i=0; i<limit; i++){
+    for (int i = 0; i < limit; i++) {
       out.add(all.get((dayIndex + i) % all.size()));
     }
     return out;
