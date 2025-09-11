@@ -5,15 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cca53fe8-9f21-4bc9-88a2-ef690c1af7f5" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/java/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/java/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/config/CorsConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/config/CorsConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/RoutineGeneratorController.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/RoutineGeneratorController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/GenerateResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/GenerateResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/ProfileDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/ProfileDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/RoutineDto.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/dto/RoutineDto.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/security/ApiKeyFilter.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/security/ApiKeyFilter.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/java/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/resources/application.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/java/src/main/resources/logback-spring.xml" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/resources/logback-spring.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,28 +30,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RequestMappingsPanelOrder0": "0",
-    "RequestMappingsPanelOrder1": "1",
-    "RequestMappingsPanelWidth0": "75",
-    "RequestMappingsPanelWidth1": "75",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "Spring Boot.Application.executor": "Run",
-    "git-widget-placeholder": "main",
-    "junie.onboarding.icon.badge.shown": "true",
-    "node.js.detected.package.eslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "to.speed.mode.migration.done": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;Spring Boot.Application.executor&quot;: &quot;Run&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\LENOVO\OneDrive\Documentos" />
@@ -108,6 +100,7 @@
       <workItem from="1757421640204" duration="243000" />
       <workItem from="1757506926074" duration="1960000" />
       <workItem from="1757555511756" duration="438000" />
+      <workItem from="1757591928664" duration="53000" />
     </task>
     <servers />
   </component>
