@@ -22,6 +22,6 @@ public class GenerateResponse {
     public String notes;
   }
     public RoutineDto routine;
-    public String message;   // opcional
-    public long generatedAt; // timestamp
+    public String message;
+    public long generatedAt;
 }

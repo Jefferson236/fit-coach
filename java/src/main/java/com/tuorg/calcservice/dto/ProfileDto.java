@@ -12,5 +12,5 @@ public class ProfileDto {
     public String split;
     public Integer durationWeeks;
     public String registrationDate;
-    public Integer oneRepMax; // 1RM estimado
+    public Integer oneRepMax;
 }

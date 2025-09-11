@@ -24,7 +24,6 @@ public class RoutineGeneratorController {
 
     @PostMapping("/preview")
     public ResponseEntity<GenerateResponse> preview(@RequestBody GenerateRequest req) {
-        // same behavior for now
         GenerateResponse resp = generator.generate(req);
         return ResponseEntity.ok(resp);
     }
