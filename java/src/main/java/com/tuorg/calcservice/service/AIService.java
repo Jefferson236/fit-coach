@@ -12,12 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 /**
- * AIService robusto que llama a Gemini y obliga al modelo a generar JSON válido
- * siguiendo el esquema GenerateResponse. Si falla Gemini, usa fallback local.
+ * AIService — llama a Gemini y extrae el JSON producido por la IA de forma robusta.
  */
 @Service
 public class AIService {
@@ -67,7 +67,7 @@ public class AIService {
             ResponseEntity<String> resp = rest.exchange(urlWithKey, HttpMethod.POST, entity, String.class);
 
             if (!resp.getStatusCode().is2xxSuccessful()) {
-                log.error("Gemini no 2xx: {} - body: {}", resp.getStatusCode(), resp.getBody());
+                log.error("Gemini no respondió 2xx: {} - body: {}", resp.getStatusCode(), resp.getBody());
                 throw new RuntimeException("Gemini returned non-2xx: " + resp.getStatusCode());
             }
 
@@ -79,9 +79,11 @@ public class AIService {
                 throw new RuntimeException("Gemini returned empty body");
             }
 
+            // Extraer el JSON contenido dentro de la respuesta de Gemini
             String jsonCandidate = extractJsonFromGeminiResponse(respBody);
-            log.debug("JSON extraído de Gemini: {}", jsonCandidate);
+            log.debug("JSON candidato extraído ({} chars)", jsonCandidate == null ? 0 : jsonCandidate.length());
 
+            // Parsear a GenerateResponse
             GenerateResponse gr = mapper.readValue(jsonCandidate, GenerateResponse.class);
 
             if (gr.weeks == null || gr.weeks.isEmpty()) {
@@ -101,8 +103,7 @@ public class AIService {
     }
 
     /**
-     * Construye el prompt — incluye la lista exacta de ejercicios permitidos, por grupo.
-     * Pedimos JSON EXACTO que respete el esquema.
+     * Construye el prompt — incluye la lista exacta de ejercicios (ya lo tenías).
      */
     private String buildPrompt(GenerateRequest req) throws Exception {
         StringBuilder p = new StringBuilder();
@@ -146,34 +147,74 @@ public class AIService {
         return p.toString();
     }
 
+    /**
+     * Extrae por heurística el bloque JSON que genera Gemini.
+     * - Busca recursivamente nodos textuales dentro del JSON wrapper (candidates, outputs, etc.)
+     * - Si encuentra texto, intenta aislar el primer bloque JSON balanceado.
+     * - Si no encuentra nada, intenta extraer primer bloque JSON de la respuesta cruda.
+     */
     private String extractJsonFromGeminiResponse(String respBody) throws Exception {
+        if (respBody == null) throw new RuntimeException("Respuesta vacía");
+
+        // 1) parsear como JSON y buscar text nodes recursivamente
         try {
             JsonNode root = mapper.readTree(respBody);
-            String[] paths = new String[] {
-                    "/candidates/0/content/parts/0/text",
-                    "/candidates/0/output/0/content/parts/0/text",
-                    "/candidates/0/content/0/parts/0/text",
-                    "/candidates/0/parts/0/text",
-                    "/outputs/0/text",
-                    "/candidates/0/text",
-                    "/response",
-                    "/output"
-            };
-            for (String p : paths) {
-                JsonNode n = root.at(p);
-                if (!n.isMissingNode() && n.isTextual()) {
-                    String txt = n.asText();
-                    String json = trimToJson(txt);
-                    if (json != null) return json;
-                    if (looksLikeJson(txt)) return txt;
-                }
+            String found = findJsonTextInNode(root);
+            if (found != null) {
+                String trimmed = trimToJson(found);
+                if (trimmed != null) return trimmed;
+                if (looksLikeJson(found)) return found;
             }
-        } catch (Exception ignore) {}
+        } catch (Exception e) {
+            // no es un JSON válido a nivel top-level o fallo; seguimos con heurística de texto bruto
+            log.debug("No pude parsear respuesta wrapper como JSON o no encontré texto allí: {}", e.toString());
+        }
 
+        // 2) heurística directa sobre el cuerpo crudo: buscar primer bloque JSON balanceado
         String candidate = trimToJson(respBody);
         if (candidate != null) return candidate;
-        if (looksLikeJson(respBody)) return respBody;
-        throw new RuntimeException("No JSON válido encontrado en respuesta de Gemini");
+
+        // 3) si aún no, intentar extraer mediante regex simple (menos fiable) - aquí solo devolver null para fallback
+        throw new RuntimeException("No pude extraer JSON válido de la respuesta de Gemini");
+    }
+
+    /**
+     * Busca recursivamente cualquier nodo textual y prueba si contiene JSON o un bloque JSON.
+     * Devuelve el primer texto interesante (por ejemplo el contenido de candidates[*].content.parts[*].text)
+     */
+    private String findJsonTextInNode(JsonNode node) {
+        if (node == null) return null;
+
+        if (node.isTextual()) {
+            String txt = node.asText();
+            // prefiero devolver textos bastante largos (posible JSON) o que parezcan JSON
+            if (txt.length() > 20) {
+                // si ya parece JSON lo devolvemos
+                if (looksLikeJson(txt)) return txt;
+                // si contiene una "{" dentro, puede contener JSON incrustado
+                if (txt.indexOf('{') >= 0) return txt;
+            }
+            return null;
+        }
+
+        if (node.isContainerNode()) {
+            // iterar campos
+            if (node.isObject()) {
+                Iterator<Map.Entry<String, JsonNode>> it = node.fields();
+                while (it.hasNext()) {
+                    JsonNode found = it.next().getValue();
+                    String r = findJsonTextInNode(found);
+                    if (r != null) return r;
+                }
+            } else if (node.isArray()) {
+                for (JsonNode el : node) {
+                    String r = findJsonTextInNode(el);
+                    if (r != null) return r;
+                }
+            }
+        }
+
+        return null;
     }
 
     private boolean looksLikeJson(String s) {
@@ -182,6 +223,9 @@ public class AIService {
         return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
     }
 
+    /**
+     * Extrae el primer bloque JSON balanceado empezando por la primera llave '{'
+     */
     private String trimToJson(String s) {
         if (s == null) return null;
         int start = s.indexOf('{');
