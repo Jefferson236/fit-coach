@@ -5,9 +5,11 @@ C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservi
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\security\SecurityConfig.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\service\CalculadoraService.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\dto\RoutineDto.java
+C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\service\AIService.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\service\RoutineGeneratorService.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\Application.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\dto\GenerateResponse.java
+C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\controller\AIController.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\dto\GenerateRequest.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\controller\RoutineGeneratorController.java
 C:\Users\jbord\Documents\GitHub\fit-coach\java\src\main\java\com\tuorg\calcservice\config\CorsConfig.java

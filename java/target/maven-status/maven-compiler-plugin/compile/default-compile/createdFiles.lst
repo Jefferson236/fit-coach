@@ -1,7 +1,9 @@
+com\tuorg\calcservice\service\AIService.class
 com\tuorg\calcservice\controller\HealthController.class
 com\tuorg\calcservice\dto\GenerateResponse$WeekDto.class
 com\tuorg\calcservice\service\CalculadoraService.class
 com\tuorg\calcservice\dto\ProfileDto.class
+com\tuorg\calcservice\controller\AIController.class
 com\tuorg\calcservice\service\CalculadoraServiceImpl.class
 com\tuorg\calcservice\dto\ExerciseDto.class
 com\tuorg\calcservice\dto\RoutineDto.class
