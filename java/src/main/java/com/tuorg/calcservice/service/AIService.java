@@ -159,7 +159,9 @@ public class AIService {
         if (m.find()) {
             return m.group(1).trim();
         }
-        // Quitar also single backticks (rare) and leading/trailing triple backticks without closed fence
+        // Quitar encabezados "json\n" o "json:\n"
+        s = s.replaceFirst("(?i)^\\s*json\\s*[:\\n]+", "");
+        // Quitar also single backticks lonely fences
         s = s.replaceAll("(?m)^```\\s*", "");
         s = s.replaceAll("(?m)\\s*```\\s*$", "");
         return s.trim();
@@ -168,13 +170,13 @@ public class AIService {
     private String extractFirstJsonBlock(String s) {
         if (s == null) return null;
         s = s.trim();
-        // Buscar primer '{' o '['
         int startObj = s.indexOf('{');
         int startArr = s.indexOf('[');
+        if (startObj == -1 && startArr == -1) return null;
+
         int start;
         char openChar;
         char closeChar;
-        if (startObj == -1 && startArr == -1) return null;
         if (startObj == -1) {
             start = startArr; openChar = '['; closeChar = ']';
         } else if (startArr == -1) {
@@ -202,18 +204,38 @@ public class AIService {
                 continue;
             }
             if (!inString) {
-                if (c == openChar) {
-                    depth++;
-                } else if (c == closeChar) {
+                if (c == openChar) depth++;
+                else if (c == closeChar) {
                     depth--;
                     if (depth == 0) {
-                        // return substring including start..i
                         return s.substring(start, i + 1).trim();
                     }
+                } else if (c == '{' && openChar != '{') {
+                    // si abrimos un objeto dentro de array, lo contamos anidado (soportado)
+                    depth++;
+                } else if (c == '}' && openChar != '{') {
+                    depth--;
                 }
             }
         }
-        // no encontramos cierre balanceado
+
+        // Si llegamos acá depth>0 -> truncado.
+        // Intentar reparar: solo si no estamos dentro de una string al final.
+        if (!inString && depth > 0) {
+            // Añadir los cierres que faltan
+            StringBuilder repaired = new StringBuilder(s.substring(start));
+            for (int k = 0; k < depth; k++) repaired.append(closeChar);
+            String cand = repaired.toString().trim();
+            // Comprobar parseo rápido (sin lanzar excepción de arriba)
+            try {
+                mapper.readTree(cand); // si parsea, devolvemos
+                return cand;
+            } catch (Exception e) {
+                // si falla, no podemos recuperar.
+                return null;
+            }
+        }
+
         return null;
     }
 
