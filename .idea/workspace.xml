@@ -9,6 +9,8 @@
       <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/AIController.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/controller/AIController.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/service/AIService.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/service/AIService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/java/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/target/calcservice-0.0.1-SNAPSHOT.jar.original" beforeDir="false" afterPath="$PROJECT_DIR$/java/target/calcservice-0.0.1-SNAPSHOT.jar.original" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/target/calcservice-0.0.5-SNAPSHOT.jar" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -109,6 +111,7 @@
       <workItem from="1757593165192" duration="959000" />
       <workItem from="1757678293827" duration="424000" />
       <workItem from="1757679347441" duration="639000" />
+      <workItem from="1757680933834" duration="636000" />
     </task>
     <servers />
   </component>
