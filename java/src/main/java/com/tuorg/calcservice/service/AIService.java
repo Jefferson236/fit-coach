@@ -15,6 +15,10 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * AIService robusto que llama a Gemini y obliga al modelo a generar JSON válido
+ * siguiendo el esquema GenerateResponse. Si falla Gemini, usa fallback local.
+ */
 @Service
 public class AIService {
 
@@ -28,7 +32,6 @@ public class AIService {
 
     private final RoutineGeneratorService fallbackGenerator;
 
-    // URL (modelo gemini-2.0-flash)
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 
@@ -36,9 +39,6 @@ public class AIService {
         this.fallbackGenerator = fallbackGenerator;
     }
 
-    /**
-     * Intenta generar rutina con Gemini. Si hay fallo recuperable, cae al generador local.
-     */
     public GenerateResponse generateRoutineFromAI(GenerateRequest req) throws Exception {
         if (geminiKey == null || geminiKey.isBlank()) {
             log.warn("gemini.api.key no configurada — usando generator local como fallback");
@@ -60,21 +60,19 @@ public class AIService {
         headers.set("X-goog-api-key", this.geminiKey);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
         String urlWithKey = GEMINI_URL + "?key=" + this.geminiKey;
 
         try {
-            log.debug("Enviando petición a Gemini (url={}): prompt length={}", GEMINI_URL, prompt.length());
+            log.debug("Enviando petición a Gemini (prompt len={}):\n{}", prompt.length(), prompt);
             ResponseEntity<String> resp = rest.exchange(urlWithKey, HttpMethod.POST, entity, String.class);
 
             if (!resp.getStatusCode().is2xxSuccessful()) {
-                String errBody = resp.getBody();
-                log.error("Gemini no 2xx: {} - body: {}", resp.getStatusCode(), errBody);
+                log.error("Gemini no 2xx: {} - body: {}", resp.getStatusCode(), resp.getBody());
                 throw new RuntimeException("Gemini returned non-2xx: " + resp.getStatusCode());
             }
 
             String respBody = resp.getBody();
-            log.debug("Respuesta cruda de Gemini: ({} chars)", respBody == null ? 0 : respBody.length());
+            log.debug("Respuesta cruda de Gemini ({} chars)", respBody == null ? 0 : respBody.length());
 
             if (respBody == null || respBody.isBlank()) {
                 log.error("Gemini devolvió body vacío");
@@ -94,52 +92,63 @@ public class AIService {
             return gr;
 
         } catch (RestClientException rce) {
-            log.error("Error de conexión o cliente al llamar Gemini: {}", rce.toString(), rce);
-            // Fallback local
+            log.error("Error de conexión al llamar Gemini: {}", rce.toString(), rce);
             return fallbackGenerator.generate(req);
         } catch (Exception ex) {
-            // Si el parseo JSON o cualquier otra cosa falla, registrarlo y usar fallback.
             log.error("Error procesando respuesta de Gemini: {}", ex.toString(), ex);
             return fallbackGenerator.generate(req);
         }
     }
 
+    /**
+     * Construye el prompt — incluye la lista exacta de ejercicios permitidos, por grupo.
+     * Pedimos JSON EXACTO que respete el esquema.
+     */
     private String buildPrompt(GenerateRequest req) throws Exception {
         StringBuilder p = new StringBuilder();
 
-        p.append("IMPORTANTE: devuelve SOLO JSON válido, sin explicación ni texto adicional.\n");
-        p.append("La salida debe seguir exactamente este esquema (JSON):\n");
+        p.append("INSTRUCCIONES IMPORTANTES (RESPONDE SOLO JSON VÁLIDO):\n");
+        p.append("Devuelve ÚNICAMENTE JSON válido (sin texto adicional) en el esquema Java GenerateResponse:\n");
+        p.append("{ \"title\": \"opcional\", \"weeks\": [ { \"week\": number, \"days\": [ { \"dayOfWeek\": number, \"items\": [ { \"exerciseId\": string_or_number, \"exerciseName\": string, \"group\": string, \"sets\": number, \"reps\": string, \"weightFormula\": string, \"notes\": string } ] } ] } ] }\n\n");
+
+        p.append("REGLAS:\n");
+        p.append("1) Usa **solo** los ejercicios listados más abajo (mismos nombres exactos, en español). No inventes otros.\n");
+        p.append("2) Genera exactamente durationWeeks semanas.\n");
+        p.append("3) Días por semana según split: fullbody=3, upper-lower=4, push-pull-legs=3, default=3.\n");
+        p.append("4) Ajusta sets/reps según goal (fuerza/resistencia/hipertrofia) y level (beginner/intermediate/advanced).\n");
+        p.append("5) Cada item debe tener: exerciseId (slug o id), exerciseName EXACTO (uno de la lista), group (uno de los grupos listados), sets, reps (ej. '3-5' o '8-12'), weightFormula (ej. '0.6*1RM' o 'Peso corporal'), notes opcional.\n");
+        p.append("6) No incluyas explicaciones ni texto fuera del JSON.\n\n");
+
+        p.append("EJERCICIOS PERMITIDOS (usa exactamente estos nombres y estos grupos):\n");
         p.append("{\n");
-        p.append("  \"title\": \"string opcional\",\n");
-        p.append("  \"weeks\": [ { \"week\": number, \"days\": [ { \"dayOfWeek\": number, \"items\": [ { \"exerciseId\": string_or_number, \"exerciseName\": string, \"group\": string, \"sets\": number, \"reps\": string, \"weightFormula\": string, \"notes\": string } ] } ] } ]\n");
+        p.append("  \"Pecho\": [\"Press de banca\",\"Press inclinado con mancuernas\",\"Aperturas con mancuernas\",\"Fondos en paralelas\"],\n");
+        p.append("  \"Espalda\": [\"Dominadas\",\"Remo con barra\",\"Peso muerto\",\"Jalón al pecho en polea\"],\n");
+        p.append("  \"Hombros\": [\"Press militar\",\"Elevaciones laterales\",\"Pájaros (elevaciones posteriores)\",\"Encogimientos (shrugs)\"],\n");
+        p.append("  \"Bíceps\": [\"Curl con barra\",\"Curl alternado con mancuernas\",\"Curl en banco Scott\"],\n");
+        p.append("  \"Tríceps\": [\"Fondos en paralelas\",\"Extensión en polea\",\"Press francés\"],\n");
+        p.append("  \"Piernas\": [\"Sentadilla con barra\",\"Prensa de pierna\",\"Peso muerto rumano\",\"Zancadas (lunges)\",\"Elevaciones de talones\"],\n");
+        p.append("  \"Abdomen/Core\": [\"Crunch abdominal\",\"Plancha\",\"Elevaciones de piernas colgado\",\"Rueda abdominal\"]\n");
         p.append("}\n\n");
 
-        p.append("Reglas:\n");
-        p.append("- Genera exactamente durationWeeks semanas.\n");
-        p.append("- Días/semana según split: fullbody=>3, upper-lower=>4, push-pull-legs=>3, default=>3.\n");
-        p.append("- Usa nombres en español: Sentadilla, Press Banca, Remo, Peso Muerto, Plancha, Curl, Fondos, etc.\n");
-        p.append("- Ajusta sets/reps según goal (fuerza/hipertrofia/resistencia) y level.\n");
-        p.append("- Cada item debe incluir exerciseId (slug o id), exerciseName, group, sets, reps, weightFormula; notes opcional.\n");
-        p.append("- No añadas texto fuera del JSON.\n\n");
+        p.append("NOTAS:\n");
+        p.append("- Para exerciseId puedes usar un slug (ej. 'press-de-banca') o un número. Lo importante es que exerciseName sea exactamente uno de los nombres anteriores.\n");
+        p.append("- Ejemplo de reps: '3-5' (fuerza), '8-12' (hipertrofia), '15-20' (resistencia).\n\n");
 
-        p.append("Perfil (JSON):\n");
+        p.append("Perfil del usuario:\n");
         if (req != null && req.profile != null) {
             p.append(mapper.writeValueAsString(req.profile)).append("\n\n");
         } else {
             p.append("{\"note\":\"perfil no proporcionado\"}\n\n");
         }
 
-        p.append("Devuelve SOLO JSON válido acorde al esquema.\n");
+        p.append("DEVUELVE SOLO JSON VÁLIDO.\n");
 
         return p.toString();
     }
 
     private String extractJsonFromGeminiResponse(String respBody) throws Exception {
-        // Try parse as JSON
         try {
             JsonNode root = mapper.readTree(respBody);
-
-            // Common candidate paths
             String[] paths = new String[] {
                     "/candidates/0/content/parts/0/text",
                     "/candidates/0/output/0/content/parts/0/text",
@@ -150,7 +159,6 @@ public class AIService {
                     "/response",
                     "/output"
             };
-
             for (String p : paths) {
                 JsonNode n = root.at(p);
                 if (!n.isMissingNode() && n.isTextual()) {
@@ -160,17 +168,11 @@ public class AIService {
                     if (looksLikeJson(txt)) return txt;
                 }
             }
+        } catch (Exception ignore) {}
 
-        } catch (Exception ignore) {
-            // not strict JSON, continue to heuristics
-        }
-
-        // Heuristic: find first balanced { ... } block
         String candidate = trimToJson(respBody);
         if (candidate != null) return candidate;
-
         if (looksLikeJson(respBody)) return respBody;
-
         throw new RuntimeException("No JSON válido encontrado en respuesta de Gemini");
     }
 
