@@ -1,13 +1,10 @@
 package com.tuorg.calcservice.controller;
 
+import com.tuorg.calcservice.dto.GenerateRequest;
+import com.tuorg.calcservice.dto.GenerateResponse;
 import com.tuorg.calcservice.service.AIService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
@@ -20,9 +17,13 @@ public class AIController {
     }
 
     @PostMapping("/generate/ai")
-    public ResponseEntity<String> generateRoutineAI(@RequestBody Map<String, Object> profile) {
-        String profileData = profile.toString();
-        String result = aiService.generateRoutine(profileData);
-        return ResponseEntity.ok(result);
+    public ResponseEntity<GenerateResponse> generateWithAI(@RequestBody GenerateRequest req) {
+        try {
+            GenerateResponse resp = aiService.generateRoutineFromAI(req);
+            return ResponseEntity.ok(resp);
+        } catch (Exception ex) {
+            // Devuelve 500 con mensaje (el frontend mostrará el error)
+            return ResponseEntity.status(500).body(null);
+        }
     }
 }
