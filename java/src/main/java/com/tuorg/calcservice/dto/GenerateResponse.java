@@ -16,6 +16,7 @@ public class GenerateResponse {
   public static class ItemDto {
     public String exerciseId;       // <-- Cambiado de Long a String
     public String exerciseName;
+    public String group;
     public int sets;
     public String reps;
     public String weightFormula;
