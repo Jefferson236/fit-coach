@@ -87,7 +87,7 @@ public class AIService {
         // 4) Parsear a GenerateResponse
         GenerateResponse gr = mapper.readValue(jsonCandidate, GenerateResponse.class);
 
-        if (gr.getWeeks() == null) throw new RuntimeException("AI returned invalid routine (no weeks)");
+        if (gr.weeks == null) throw new RuntimeException("AI returned invalid routine (no weeks)");
         return gr;
     }
 
