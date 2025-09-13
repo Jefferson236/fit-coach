@@ -39,7 +39,7 @@ public class AIService {
                 Map.of("role", "system", "content", "Eres un asistente que responde SOLO con JSON válido."),
                 Map.of("role", "user", "content", prompt)
         ));
-        // Parámetros: ajusta según los límites de DeepSeek
+        // parámetros configurables
         body.put("max_tokens", 8192);
         body.put("temperature", 0.2);
         body.put("stream", false);
@@ -54,53 +54,38 @@ public class AIService {
         ResponseEntity<String> resp = rest.exchange(DEEPSEEK_URL, HttpMethod.POST, entity, String.class);
 
         if (!resp.getStatusCode().is2xxSuccessful()) {
-            String bodyText = resp.getBody();
-            log.error("DeepSeek request failed: status={} body={}", resp.getStatusCode(), bodyText);
-            throw new RuntimeException("DeepSeek request failed: " + resp.getStatusCode() + " - " + bodyText);
+            throw new RuntimeException("DeepSeek request failed: " + resp.getStatusCode() + " - " + resp.getBody());
         }
 
         String respBody = resp.getBody();
-        log.debug("Raw DeepSeek response: {}", respBody == null ? "<empty>" : (respBody.length() > 2000 ? respBody.substring(0,2000) + "...(truncated)" : respBody));
-
         if (respBody == null || respBody.isBlank()) throw new RuntimeException("DeepSeek returned empty body");
 
-        // 1) limpiar fences / prefijos
-        String cleaned = stripCodeFences(respBody);
+        log.debug("Raw DeepSeek response:\n{}", respBody);
 
-        // 2) intentar extraer texto relevante (json dentro de estructura choices/choices[0] etc.)
-        String text = extractTextFromDeepSeekResponse(cleaned);
-        log.debug("Extracted candidate text (pre-unescape): {}", text == null ? "<null>" : (text.length() > 1500 ? text.substring(0,1500) + "...(truncated)" : text));
+        // 1) Extraer el texto real generado por el asistente (desde choices/... o candidates/...)
+        String assistantText = extractTextFromDeepSeekResponse(respBody);
+        log.debug("Assistant raw text length={} chars", (assistantText == null ? 0 : assistantText.length()));
 
-        // 3) desescapar si la IA devolvió JSON como string escapado
-        text = unescapeIfQuotedJson(text);
-        log.debug("Candidate text after unescape (len={}): {}", text == null ? 0 : text.length(), (text == null ? "<null>" : (text.length() > 1500 ? text.substring(0,1500) + "...(truncated)" : text)));
+        // 2) Limpiar fences / encabezados (```json ... ``` y prefijos "json\n")
+        String cleaned = stripCodeFences(assistantText);
+        log.debug("Cleaned assistant text (first 400 chars):\n{}", cleaned.length() > 400 ? cleaned.substring(0, 400) + "..." : cleaned);
 
-        // 4) intentar extraer/reparar JSON
-        String jsonCandidate = extractFirstJsonBlock(text);
+        // 3) Extraer primer bloque JSON válido (balanceando llaves)
+        String jsonCandidate = extractFirstJsonBlock(cleaned);
         if (jsonCandidate == null) {
-            // último intento: si el texto parece JSON suelto
-            if (looksLikeJson(text)) {
-                jsonCandidate = text.trim();
-            } else {
-                log.error("No pude extraer JSON. RespBody (truncated): {}\nCandidateText (truncated): {}",
-                        respBody.length() > 2000 ? respBody.substring(0,2000) + "..." : respBody,
-                        text == null ? "<null>" : (text.length() > 2000 ? text.substring(0,2000) + "..." : text));
-                throw new RuntimeException("No pude extraer JSON de la respuesta de DeepSeek. Texto: " + (text == null ? respBody : text));
+            // último recurso: si el cleaned parece JSON perfecto, úsalo
+            if (looksLikeJson(cleaned)) jsonCandidate = cleaned.trim();
+            else {
+                // incluir una porción del cleaned para ayudar debugging
+                String snippet = cleaned == null ? "" : (cleaned.length() > 500 ? cleaned.substring(0, 500) + "..." : cleaned);
+                throw new RuntimeException("No pude extraer JSON de la respuesta de DeepSeek. Texto inicio: " + snippet);
             }
         }
 
-        log.debug("JSON candidate (len={}): {}", jsonCandidate.length(), jsonCandidate.length() > 2000 ? jsonCandidate.substring(0,2000) + "...(truncated)" : jsonCandidate);
+        log.debug("JSON candidate length={} chars", jsonCandidate.length());
 
-        // parsear a GenerateResponse
-        GenerateResponse gr;
-        try {
-            gr = mapper.readValue(jsonCandidate, GenerateResponse.class);
-        } catch (Exception ex) {
-            log.error("Error parseando JSON candidato a GenerateResponse: {}", ex.toString(), ex);
-            // arrojar detalle para frontend (útil en dev)
-            throw new RuntimeException("Error parseando JSON de DeepSeek: " + ex.getMessage() + ". JSON candidate starts: " +
-                    (jsonCandidate.length() > 500 ? jsonCandidate.substring(0,500) + "..." : jsonCandidate));
-        }
+        // 4) Parsear a GenerateResponse
+        GenerateResponse gr = mapper.readValue(jsonCandidate, GenerateResponse.class);
 
         if (gr.weeks == null) throw new RuntimeException("AI returned invalid routine (no weeks)");
         return gr;
@@ -143,83 +128,78 @@ public class AIService {
         return p.toString();
     }
 
+    /**
+     * Extrae el contenido textual que generó el asistente dentro de la respuesta de DeepSeek.
+     * Devuelve asText() (es decir, con escapes interpretados) cuando sea posible.
+     */
     private String extractTextFromDeepSeekResponse(String respBody) throws Exception {
         JsonNode root = mapper.readTree(respBody);
+
+        // Rutas probables en diferentes APIs (DeepSeek/OpenAI-like)
         List<String> tryPaths = List.of(
                 "/choices/0/message/content",
                 "/choices/0/message/content/0",
                 "/choices/0/text",
-                "/choices/0/message/0/content",
+                "/choices/0/message/content/0/text",
                 "/outputs/0",
                 "/output",
                 "/response",
                 "/choices/0/response",
                 "/candidates/0/content/parts/0/text",
-                "/candidates/0/text"
+                "/candidates/0/content/0/parts/0/text"
         );
+
         for (String p : tryPaths) {
             try {
                 JsonNode node = root.at(p);
                 if (!node.isMissingNode()) {
+                    // Si es texto, devolverlo con asText() para que los escapes se conviertan a newlines
                     if (node.isTextual()) return node.asText();
+                    // Si es array de partes -> concatenar sus textos si existen
+                    if (node.isArray()) {
+                        StringBuilder sb = new StringBuilder();
+                        for (JsonNode n : node) {
+                            if (n.isTextual()) sb.append(n.asText()).append("\n");
+                            else sb.append(n.toString()).append("\n");
+                        }
+                        return sb.toString().trim();
+                    }
+                    // fallback: si es objeto, devolver su toString()
                     return node.toString();
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                // ignora y prueba la siguiente ruta
+            }
         }
-        // Si la raíz es texto simple
-        if (root.isTextual()) return root.asText();
-        // fallback: devolver el body entero
+
+        // Si no encontramos ninguna ruta especial, devolver el body entero
+        // (en muchos casos la respuesta completa seguirá siendo JSON que contiene el texto)
         return respBody;
     }
 
+    /**
+     * Quita fences de Markdown ```json ... ``` y prefijos "json\n" o "JSON\n"
+     */
     private String stripCodeFences(String s) {
         if (s == null) return null;
-        // Quitar bloques ```json ... ```
+        // Si el texto contiene fences reales (```json ... ```), capturarlos
         Pattern p = Pattern.compile("(?s)```(?:json)?\\s*(.*?)\\s*```");
         Matcher m = p.matcher(s);
         if (m.find()) return m.group(1).trim();
-        // Quitar encabezados como "json\n" o "JSON\n"
+
+        // Si viene con prefijo "json\n" o "JSON\n"
         s = s.replaceFirst("(?i)^\\s*json\\s*[:\\n]+", "");
-        // Quitar fences simples si quedan
+
+        // remover fences residuales
         s = s.replaceAll("(?m)^```\\s*", "");
         s = s.replaceAll("(?m)\\s*```\\s*$", "");
         return s.trim();
     }
 
     /**
-     * Si el texto contiene JSON escapado (\" y \\n), lo desescapa.
-     * También maneja casos sin comillas exteriores pero con muchos escapes.
+     * Extrae el primer bloque JSON balanceado (desde '{' o '[' hasta su cierre correspondiente).
+     * Trata de "reparar" añadiendo llaves de cierre si la respuesta fue truncada.
      */
-    private String unescapeIfQuotedJson(String s) {
-        if (s == null) return null;
-        String t = s.trim();
-
-        // Caso 1: empieza y termina con comillas y contiene escapes internos -> quitar comillas externas y desescapar
-        if (t.startsWith("\"") && t.endsWith("\"") && t.contains("\\\"")) {
-            t = t.substring(1, t.length()-1);
-            t = t.replaceAll("\\\\n", "\n")
-                    .replaceAll("\\\\r", "\r")
-                    .replaceAll("\\\\t", "\t")
-                    .replaceAll("\\\\\"", "\"")
-                    .replaceAll("\\\\\\\\", "\\\\");
-            return t.trim();
-        }
-
-        // Caso 2: no está entre comillas, pero contiene muchos escapes (heurística)
-        long backslashes = t.chars().filter(ch -> ch == '\\').count();
-        long quotes = t.chars().filter(ch -> ch == '\"').count();
-        if (backslashes > quotes && (t.contains("\\\"weeks\\\"") || t.contains("\\\"days\\\"") || t.contains("\\\\n"))) {
-            t = t.replaceAll("\\\\n", "\n")
-                    .replaceAll("\\\\r", "\r")
-                    .replaceAll("\\\\t", "\t")
-                    .replaceAll("\\\\\"", "\"")
-                    .replaceAll("\\\\\\\\", "\\\\");
-            return t.trim();
-        }
-
-        return s;
-    }
-
     private String extractFirstJsonBlock(String s) {
         if (s == null) return null;
         s = s.trim();
@@ -250,18 +230,19 @@ public class AIService {
                 if (c == openChar) depth++;
                 else if (c == closeChar) {
                     depth--;
-                    if (depth == 0) return s.substring(start, i+1).trim();
-                }
+                    if (depth == 0) return s.substring(start, i + 1).trim();
+                } else if (c == '{' && openChar!='{') depth++;
+                else if (c == '}' && openChar!='{') depth--;
             }
         }
 
-        // truncado: intentar reparar
+        // si depth>0 intentamos reparar añadiendo cierres (solo si no estamos dentro de string)
         if (!inString && depth > 0) {
             StringBuilder repaired = new StringBuilder(s.substring(start));
             for (int k=0;k<depth;k++) repaired.append(closeChar);
             String cand = repaired.toString().trim();
             try {
-                mapper.readTree(cand);
+                mapper.readTree(cand); // si parsea OK, lo devolvemos
                 return cand;
             } catch (Exception e) {
                 return null;
