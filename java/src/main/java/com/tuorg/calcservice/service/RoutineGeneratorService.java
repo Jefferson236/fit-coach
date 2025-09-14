@@ -9,8 +9,6 @@ import com.tuorg.calcservice.dto.GenerateResponse.ItemDto;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,7 +27,6 @@ public class RoutineGeneratorService {
     String split = req.profile.split == null ? "Fullbody" : req.profile.split;
     String goal = req.profile.goal == null ? "Hipertrofia" : req.profile.goal;
     int daysPerWeek = determineDaysPerWeek(split);
-    Double bodyWeight = req.profile.weight; // lo usamos para calcular el peso real
 
     // Agrupar ejercicios
     Map<String, List<ExerciseDto>> byGroup = new HashMap<>();
@@ -64,30 +61,13 @@ public class RoutineGeneratorService {
           item.exerciseId = e.id;
           item.exerciseName = e.name;
 
-          // sets y reps desde CalculadoraService
+          // 🔹 Ahora sí usamos CalculadoraService para generar sets, reps y peso
           item.sets = calc.recommendedSets(goal);
           item.reps = calc.recommendedReps(goal);
-
-          // fórmula inicial
-          String rawFormula = calc.recommendedWeight(goal, e.name);
-          // la convertimos a texto listo para mostrar
-          item.weightFormula = toDisplayWeight(rawFormula, bodyWeight, e.name);
+          item.weightFormula = calc.recommendedWeight(goal, e.name);
 
           day.items.add(item);
         }
-
-        // 🔹 Si no hubo ejercicios → marcar "Descanso"
-        if (day.items.isEmpty()) {
-          ItemDto rest = new ItemDto();
-          rest.exerciseId = "rest";
-          rest.exerciseName = "Descanso";
-          rest.group = "rest";
-          rest.sets = 0;
-          rest.reps = "";
-          rest.weightFormula = "";
-          day.items.add(rest);
-        }
-
         week.days.add(day);
       }
       resp.weeks.add(week);
@@ -121,70 +101,5 @@ public class RoutineGeneratorService {
       out.add(all.get((dayIndex + i) % all.size()));
     }
     return out;
-  }
-
-  // ======================
-  // Helpers de peso
-  // ======================
-
-  private static final Pattern BODY_WEIGHT_EXPR =
-          Pattern.compile("^\\s*([0-9]*\\.?[0-9]+)\\s*\\*\\s*bodyWeight\\s*$", Pattern.CASE_INSENSITIVE);
-
-  private String toDisplayWeight(String weightFormula, Double bodyWeight, String exerciseName) {
-    if (bodyWeight == null) return "—";
-
-    if (weightFormula != null && !weightFormula.isBlank()) {
-      Matcher m = BODY_WEIGHT_EXPR.matcher(weightFormula);
-      if (m.find()) {
-        double mult = Double.parseDouble(m.group(1));
-        double kg = mult * bodyWeight;
-        return String.format(Locale.US, "%.1f kg", kg);
-      }
-      if (weightFormula.trim().equals("0")) {
-        return isBodyweight(exerciseName) ? "Peso corporal" : "0 kg";
-      }
-      return weightFormula; // fallback
-    }
-
-    // fallback por nombre
-    Double mult = defaultMultiplierFor(exerciseName);
-    if (mult == null) {
-      return isBodyweight(exerciseName) ? "Peso corporal" : "—";
-    }
-    if (mult == 0.0) {
-      return isBodyweight(exerciseName) ? "Peso corporal" : "0 kg";
-    }
-    double kg = mult * bodyWeight;
-    return String.format(Locale.US, "%.1f kg", kg);
-  }
-
-  private boolean isBodyweight(String name) {
-    if (name == null) return false;
-    String n = name.toLowerCase(Locale.ROOT);
-    return n.contains("dominada") || n.contains("pull-up") ||
-            n.contains("flexión")  || n.contains("push-up") ||
-            n.contains("plancha")  || n.contains("crunch")  ||
-            n.contains("abdominal")|| n.contains("elevaciones de piernas") ||
-            n.contains("hanging leg raise");
-  }
-
-  private Double defaultMultiplierFor(String name) {
-    if (name == null) return null;
-    String n = name.toLowerCase(Locale.ROOT);
-
-    if (n.contains("press de banca")) return 0.5;
-    if (n.contains("remo con barra")) return 0.4;
-    if (n.contains("sentadilla"))     return 0.5;
-    if (n.contains("crunch"))         return 0.0;
-    if (n.contains("press inclinado"))return 0.4;
-    if (n.contains("jalón al pecho")) return 0.4;
-    if (n.contains("prensa de pierna"))return 0.6;
-    if (n.contains("plancha"))        return 0.0;
-    if (n.contains("aperturas"))      return 0.3;
-    if (n.contains("dominadas"))      return 0.0;
-    if (n.contains("peso muerto rumano")) return 0.4;
-    if (n.contains("elevaciones de piernas")) return 0.0;
-
-    return null;
   }
 }

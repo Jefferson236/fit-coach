@@ -90,8 +90,8 @@ public class AIService {
         p.append("Formato estricto de salida:\n");
         p.append("{ \"weeks\": [\n");
         p.append("  { \"week\": 1, \"days\": [\n");
-        p.append("    { \"dayOfWeek\": 1, \"items\": [ { \"exerciseId\": \"press_banca\", \"exerciseName\": \"Press de banca\", \"group\": \"Pecho\", \"sets\": 3, \"reps\": 10, \"weightFormula\": \"0.5 * bodyWeight\" } ] },\n");
-        p.append("    { \"dayOfWeek\": 2, \"items\": [] },\n");
+        p.append("    { \"dayOfWeek\": 1, \"items\": [ { \"exerciseId\": \"press_banca\", \"exerciseName\": \"Press de banca\", \"group\": \"Pecho\", \"sets\": 3, \"reps\": 10, \"weightFormula\": \"40.0 kg\" } ] },\n");
+        p.append("    { \"dayOfWeek\": 2, \"items\": [ { \"exerciseId\": \"rest\", \"exerciseName\": \"Descanso\", \"group\": \"rest\", \"sets\": 0, \"reps\": \"\", \"weightFormula\": \"\" } ] },\n");
         p.append("    ... hasta dayOfWeek = 7 ...\n");
         p.append("  ] }\n");
         p.append("] }\n\n");
@@ -111,8 +111,10 @@ public class AIService {
         p.append(" - Cada semana debe tener EXACTAMENTE 7 días (1 al 7).\n");
         p.append(" - Máximo 4 ejercicios por día.\n");
         p.append(" - Devuelve exactamente durationWeeks semanas.\n");
-        p.append(" - Si un día no tiene ejercicios, devuelve igualmente \"items\": [].\n");
+        p.append(" - Si un día no tiene ejercicios, devuelve igualmente un item con \"exerciseId\": \"rest\", \"exerciseName\": \"Descanso\", \"group\": \"rest\", \"sets\": 0, \"reps\": \"\", \"weightFormula\": \"\".\n");
         p.append(" - Cada item debe tener: exerciseId, exerciseName, group, sets, reps, weightFormula.\n");
+        p.append(" - El campo \"weightFormula\" debe contener el valor numérico en kilogramos ya calculado según el peso del usuario. Ejemplo: \"37.5 kg\". Nunca muestres expresiones como \"0.5 * bodyWeight\".\n");
+        p.append(" - Para ejercicios de peso corporal (dominadas, planchas, crunches, etc.) usa \"Peso corporal\" en weightFormula.\n");
         p.append(" - No uses explicaciones ni texto fuera del JSON.\n\n");
 
         p.append("Usuario: ");

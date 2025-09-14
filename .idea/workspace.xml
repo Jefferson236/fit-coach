@@ -5,7 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="cca53fe8-9f21-4bc9-88a2-ef690c1af7f5" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/service/AIService.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/service/AIService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/service/RoutineGeneratorService.java" beforeDir="false" afterPath="$PROJECT_DIR$/java/src/main/java/com/tuorg/calcservice/service/RoutineGeneratorService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/java/target/classes/com/tuorg/calcservice/service/AIService.class" beforeDir="false" afterPath="$PROJECT_DIR$/java/target/classes/com/tuorg/calcservice/service/AIService.class" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -122,6 +125,7 @@
       <workItem from="1757771937389" duration="82000" />
       <workItem from="1757772518248" duration="180000" />
       <workItem from="1757795177779" duration="197000" />
+      <workItem from="1757796169370" duration="845000" />
     </task>
     <servers />
   </component>
