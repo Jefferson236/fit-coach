@@ -1,5 +1,6 @@
 package com.tuorg.calcservice.service;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tuorg.calcservice.dto.GenerateRequest;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,7 +23,7 @@ import java.util.regex.Pattern;
 public class AIService {
 
     private final Logger log = LoggerFactory.getLogger(AIService.class);
-    private final RestTemplate rest = new RestTemplate();
+    private final RestTemplate rest;
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Value("${deepseek.api.key}")
@@ -29,6 +31,20 @@ public class AIService {
 
     // DeepSeek endpoint
     private static final String DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
+
+    // tokens por defecto (ajusta si quieres)
+    private static final int DEFAULT_MAX_TOKENS = 4096;
+
+    public AIService() {
+        // Inicializar RestTemplate con timeouts para evitar bloqueos largos
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(10_000); // 10s connect
+        requestFactory.setReadTimeout(60_000);    // 60s read
+        this.rest = new RestTemplate(requestFactory);
+
+        // Configurar mapper para ignorar propiedades desconocidas (evita errores si la IA añade campos extras)
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
 
     public GenerateResponse generateRoutineFromAI(GenerateRequest req) throws Exception {
         String prompt = buildPrompt(req);
@@ -39,7 +55,8 @@ public class AIService {
                 Map.of("role", "system", "content", "Eres un asistente que responde SOLO con JSON válido."),
                 Map.of("role", "user", "content", prompt)
         ));
-        body.put("max_tokens", 8192);
+        // reducir tokens por defecto para evitar respuestas gigantes/truncadas y uso excesivo
+        body.put("max_tokens", DEFAULT_MAX_TOKENS);
         body.put("temperature", 0.2);
         body.put("stream", false);
 
@@ -59,25 +76,33 @@ public class AIService {
         String respBody = resp.getBody();
         if (respBody == null || respBody.isBlank()) throw new RuntimeException("DeepSeek returned empty body");
 
-        log.debug("Raw DeepSeek response:\n{}", respBody);
+        log.debug("Raw DeepSeek response length={}", respBody.length());
 
+        // 1) extraer texto del body (choices, candidates, outputs, ...)
         String assistantText = extractTextFromDeepSeekResponse(respBody);
         log.debug("Assistant raw text length={} chars", (assistantText == null ? 0 : assistantText.length()));
 
+        // 2) quitar fences ```json``` y encabezados "json"
         String cleaned = stripCodeFences(assistantText);
-        log.debug("Cleaned assistant text (first 400 chars):\n{}", cleaned.length() > 400 ? cleaned.substring(0, 400) + "..." : cleaned);
+        log.debug("Cleaned assistant text (first 500):\n{}", cleaned == null ? "<null>" :
+                (cleaned.length() > 500 ? cleaned.substring(0, 500) + "..." : cleaned));
 
+        // 3) si viene doblemente codificado como string con escapes -> des-escapar
+        cleaned = unescapeIfQuotedJson(cleaned);
+
+        // 4) extraer primer bloque JSON balanceado
         String jsonCandidate = extractFirstJsonBlock(cleaned);
         if (jsonCandidate == null) {
             if (looksLikeJson(cleaned)) jsonCandidate = cleaned.trim();
             else {
-                String snippet = cleaned == null ? "" : (cleaned.length() > 500 ? cleaned.substring(0, 500) + "..." : cleaned);
+                String snippet = cleaned == null ? "" : (cleaned.length() > 1000 ? cleaned.substring(0, 1000) + "..." : cleaned);
                 throw new RuntimeException("No pude extraer JSON de la respuesta de DeepSeek. Texto inicio: " + snippet);
             }
         }
 
         log.debug("JSON candidate length={} chars", jsonCandidate.length());
 
+        // 5) parsear a DTO (mapper ignora propiedades desconocidas)
         GenerateResponse gr = mapper.readValue(jsonCandidate, GenerateResponse.class);
 
         if (gr.weeks == null) throw new RuntimeException("AI returned invalid routine (no weeks)");
@@ -88,13 +113,7 @@ public class AIService {
         StringBuilder p = new StringBuilder();
         p.append("RESPONDE SÓLO con JSON válido. Sin explicaciones.\n");
         p.append("Formato estricto de salida:\n");
-        p.append("{ \"weeks\": [\n");
-        p.append("  { \"week\": 1, \"days\": [\n");
-        p.append("    { \"dayOfWeek\": 1, \"items\": [ { \"exerciseId\": \"press_banca\", \"exerciseName\": \"Press de banca\", \"group\": \"Pecho\", \"sets\": 3, \"reps\": 10, \"weightFormula\": \"40.0 kg\" } ] },\n");
-        p.append("    { \"dayOfWeek\": 2, \"items\": [ { \"exerciseId\": \"rest\", \"exerciseName\": \"Descanso\", \"group\": \"rest\", \"sets\": 0, \"reps\": \"\", \"weightFormula\": \"\" } ] },\n");
-        p.append("    ... hasta dayOfWeek = 7 ...\n");
-        p.append("  ] }\n");
-        p.append("] }\n\n");
+        p.append("{ \"weeks\": [ ... ] }\n\n");
 
         p.append("USAR SOLO los siguientes ejercicios por grupo:\n");
         p.append("Pecho: Press de banca, Press inclinado con mancuernas, Aperturas con mancuernas, Fondos en paralelas\n");
@@ -106,15 +125,11 @@ public class AIService {
         p.append("Abdomen/Core: Crunch abdominal, Plancha, Elevaciones de piernas colgado, Rueda abdominal\n\n");
 
         p.append("REGLAS IMPORTANTES:\n");
-        p.append(" - Incluye SIEMPRE el campo \"week\" (número entero).\n");
-        p.append(" - Incluye SIEMPRE el campo \"dayOfWeek\" (1=Lunes ... 7=Domingo).\n");
-        p.append(" - Cada semana debe tener EXACTAMENTE 7 días (1 al 7).\n");
-        p.append(" - Máximo 4 ejercicios por día.\n");
-        p.append(" - Devuelve exactamente durationWeeks semanas.\n");
-        p.append(" - Si un día no tiene ejercicios, devuelve igualmente un item con \"exerciseId\": \"rest\", \"exerciseName\": \"Descanso\", \"group\": \"rest\", \"sets\": 0, \"reps\": \"\", \"weightFormula\": \"\".\n");
+        p.append(" - Incluye el campo \"week\" y \"dayOfWeek\".\n");
+        p.append(" - Cada semana debe tener EXACTAMENTE durationWeeks semanas solicitadas.\n");
+        p.append(" - Si un día no tiene ejercicios, devuelve un item con \"exerciseId\": \"rest\" (Descanso).\n");
         p.append(" - Cada item debe tener: exerciseId, exerciseName, group, sets, reps, weightFormula.\n");
-        p.append(" - El campo \"weightFormula\" debe contener el valor numérico en kilogramos ya calculado según el peso del usuario. Ejemplo: \"37.5 kg\". Nunca muestres expresiones como \"0.5 * bodyWeight\".\n");
-        p.append(" - Para ejercicios de peso corporal (dominadas, planchas, crunches, etc.) usa \"Peso corporal\" en weightFormula.\n");
+        p.append(" - El campo weightFormula debe contener el valor ya calculado en kg cuando corresponda, p.ej. \"37.5 kg\" o \"Peso corporal\" para ejercicios de propio peso.\n");
         p.append(" - No uses explicaciones ni texto fuera del JSON.\n\n");
 
         p.append("Usuario: ");
@@ -135,6 +150,7 @@ public class AIService {
     }
 
     private String extractTextFromDeepSeekResponse(String respBody) throws Exception {
+        // Intentar parsear la respuesta como JSON y buscar en varios caminos comunes
         JsonNode root = mapper.readTree(respBody);
         List<String> tryPaths = List.of(
                 "/choices/0/message/content",
@@ -164,23 +180,70 @@ public class AIService {
                     }
                     return node.toString();
                 }
-            } catch (Exception e) {
-                // ignorar
-            }
+            } catch (Exception ignored) {}
         }
+
+        // Intentos alternativos para estructuras menos comunes
+        try {
+            JsonNode choices = root.get("choices");
+            if (choices != null && choices.isArray() && choices.size() > 0) {
+                JsonNode msg = choices.get(0).get("message");
+                if (msg != null) {
+                    JsonNode content = msg.get("content");
+                    if (content != null) {
+                        if (content.isTextual()) return content.asText();
+                        if (content.isArray() && content.size() > 0) {
+                            for (JsonNode part : content) {
+                                if (part.isTextual()) return part.asText();
+                                if (part.has("text")) return part.get("text").asText();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // Si no se encontró nada, devolver el body completo (para debug)
         return respBody;
     }
 
     private String stripCodeFences(String s) {
         if (s == null) return null;
+        // quitar bloques ```json ... ```
         Pattern p = Pattern.compile("(?s)```(?:json)?\\s*(.*?)\\s*```");
         Matcher m = p.matcher(s);
         if (m.find()) return m.group(1).trim();
-
+        // quitar encabezados como "json\n"
         s = s.replaceFirst("(?i)^\\s*json\\s*[:\\n]+", "");
         s = s.replaceAll("(?m)^```\\s*", "");
         s = s.replaceAll("(?m)\\s*```\\s*$", "");
         return s.trim();
+    }
+
+    private String unescapeIfQuotedJson(String text) {
+        if (text == null) return null;
+        String t = text.trim();
+
+        // Caso: string entre comillas y con escapes -> p.ej "\"{\\\"weeks\\\":...}\""
+        if (t.length() > 2 && t.startsWith("\"") && t.endsWith("\"") && t.contains("\\\"")) {
+            try {
+                String unescaped = mapper.readValue(t, String.class);
+                log.debug("Unescaped JSON string (beforeLen={}, afterLen={})", t.length(), unescaped.length());
+                return unescaped;
+            } catch (Exception e) {
+                log.debug("No se pudo unescapear texto JSON-string: {}", e.toString());
+            }
+        }
+
+        // Reemplazo simple de escapes comunes si detectados
+        if (t.contains("\\n") || t.contains("\\\"")) {
+            String attempt = t.replace("\\n", "\n").replace("\\\"", "\"");
+            if (attempt.trim().startsWith("{") || attempt.trim().startsWith("[")) {
+                return attempt;
+            }
+        }
+
+        return t;
     }
 
     private String extractFirstJsonBlock(String s) {
@@ -219,14 +282,16 @@ public class AIService {
             }
         }
 
+        // intentar reparar JSON truncado cerrando llaves (solo si no estamos dentro de string)
         if (!inString && depth > 0) {
             StringBuilder repaired = new StringBuilder(s.substring(start));
-            for (int k=0;k<depth;k++) repaired.append(closeChar);
+            for (int k = 0; k < depth; k++) repaired.append(closeChar);
             String cand = repaired.toString().trim();
             try {
                 mapper.readTree(cand);
                 return cand;
             } catch (Exception e) {
+                log.debug("No se pudo reparar JSON candidate: {}", e.toString());
                 return null;
             }
         }
