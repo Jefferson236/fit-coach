@@ -30,41 +30,49 @@ public class AIService {
     private static final String DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
     // Lista de ejercicios permitidos (útil para inferir grupo si hiciera falta)
-    private static final Map<String, String> EX_TO_GROUP = Map.ofEntries(
-            Map.entry("Press de banca", "Pecho"),
-            Map.entry("Press inclinado con mancuernas", "Pecho"),
-            Map.entry("Aperturas con mancuernas", "Pecho"),
-            Map.entry("Fondos en paralelas", "Pecho"),
+    // reemplaza la declaración vieja por esto
+    private static final Map<String, String> EX_TO_GROUP;
+    static {
+        Map<String, String> m = new HashMap<>();
+        // Pecho
+        m.put("Press de banca", "Pecho");
+        m.put("Press inclinado con mancuernas", "Pecho");
+        m.put("Aperturas con mancuernas", "Pecho");
+        // NOTA: "Fondos en paralelas" lo mapearé a Tríceps (evita duplicate key)
+        // si prefieres que pertenezca a Pecho, mueve esta línea abajo o cámbiala.
+        // Espalda
+        m.put("Dominadas", "Espalda");
+        m.put("Remo con barra", "Espalda");
+        m.put("Peso muerto", "Espalda");
+        m.put("Jalón al pecho en polea", "Espalda");
+        // Hombros
+        m.put("Press militar", "Hombros");
+        m.put("Elevaciones laterales", "Hombros");
+        m.put("Pájaros", "Hombros");
+        m.put("Encogimientos", "Hombros");
+        // Bíceps
+        m.put("Curl con barra", "Bíceps");
+        m.put("Curl alternado con mancuernas", "Bíceps");
+        m.put("Curl en banco Scott", "Bíceps");
+        // Tríceps
+        m.put("Fondos en paralelas", "Tríceps"); // <-- elegí Tríceps como prioridad
+        m.put("Extensión en polea", "Tríceps");
+        m.put("Press francés", "Tríceps");
+        // Piernas
+        m.put("Sentadilla con barra", "Piernas");
+        m.put("Prensa de pierna", "Piernas");
+        m.put("Peso muerto rumano", "Piernas");
+        m.put("Zancadas", "Piernas");
+        m.put("Elevaciones de talones", "Piernas");
+        // Abdomen/Core
+        m.put("Crunch abdominal", "Abdomen/Core");
+        m.put("Plancha", "Abdomen/Core");
+        m.put("Elevaciones de piernas colgado", "Abdomen/Core");
+        m.put("Rueda abdominal", "Abdomen/Core");
 
-            Map.entry("Dominadas", "Espalda"),
-            Map.entry("Remo con barra", "Espalda"),
-            Map.entry("Peso muerto", "Espalda"),
-            Map.entry("Jalón al pecho en polea", "Espalda"),
+        EX_TO_GROUP = Collections.unmodifiableMap(m);
+    }
 
-            Map.entry("Press militar", "Hombros"),
-            Map.entry("Elevaciones laterales", "Hombros"),
-            Map.entry("Pájaros", "Hombros"),
-            Map.entry("Encogimientos", "Hombros"),
-
-            Map.entry("Curl con barra", "Bíceps"),
-            Map.entry("Curl alternado con mancuernas", "Bíceps"),
-            Map.entry("Curl en banco Scott", "Bíceps"),
-
-            Map.entry("Fondos en paralelas", "Tríceps"),
-            Map.entry("Extensión en polea", "Tríceps"),
-            Map.entry("Press francés", "Tríceps"),
-
-            Map.entry("Sentadilla con barra", "Piernas"),
-            Map.entry("Prensa de pierna", "Piernas"),
-            Map.entry("Peso muerto rumano", "Piernas"),
-            Map.entry("Zancadas", "Piernas"),
-            Map.entry("Elevaciones de talones", "Piernas"),
-
-            Map.entry("Crunch abdominal", "Abdomen/Core"),
-            Map.entry("Plancha", "Abdomen/Core"),
-            Map.entry("Elevaciones de piernas colgado", "Abdomen/Core"),
-            Map.entry("Rueda abdominal", "Abdomen/Core")
-    );
 
     public GenerateResponse generateRoutineFromAI(GenerateRequest req) throws Exception {
         String prompt = buildPrompt(req);
