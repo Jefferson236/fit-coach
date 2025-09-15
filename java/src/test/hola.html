@@ -1,0 +1,576 @@
+<div id="fitcoach-app-shortcode-wrap">
+    <script>
+        window.FitCoachWP = {
+            ajaxUrl: "<?php echo esc_js( $ajax_url ); ?>",
+            nonce: "<?php echo esc_js( $nonce ); ?>",
+            currentUser: {
+                logged: <?php echo $is_logged; ?>,
+        id: <?php echo $user_id; ?>
+        }
+        };
+    </script>
+
+    <!-- Entire app HTML/CSS/JS (adapted) -->
+    <!-- Note: you can style or move this as you like -->
+    <style>
+        :root{ --bg:#0f1720; --panel:#121417; --muted:#9aa0a6; --accent:#f6c34c; --card:#101214; --soft:#1a1e23; --white:#eef1f4; --primary:#6ee7b7; }
+        #fitcoach.short-root{ font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto;}
+        /* (only minimal inline CSS here — full styles inside main container below) */
+    </style>
+    <!-- Paste the full app markup (slightly modified to include Save UI) -->
+    <div id="fitcoach" class="fc-root" aria-live="polite" style="background:linear-gradient(180deg,#071019 0%, #0b1320 100%); color:var(--white); padding:18px; border-radius:12px;">
+        <aside class="fc-left" style="width:420px; min-width:320px; display:flex; flex-direction:column; gap:14px;">
+
+
+            <div class="card" style="background:var(--panel); padding:12px; border-radius:10px; box-shadow: 0 6px 20px rgba(3,6,10,0.6);">
+                <div class="card-title" style="font-weight:600; color:var(--muted); margin-bottom:8px; font-size:13px;">Mis Rutinas</div>
+
+                <!-- Saved routines list -->
+                <div id="saved-routines" class="saved-list" style="color:var(--muted); font-size:13px;">No hay rutinas guardadas</div>
+
+                <!-- Input para nombre + botón guardar -->
+                <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                    <input id="routineName" placeholder="Nombre de la rutina (ej: PPL Semana 1)"
+                           style="flex:1; padding:8px 10px; border-radius:8px; background:#0f1417; color:var(--white); border:1px solid rgba(255,255,255,0.04)" />
+                    <button id="save-routine-btn" class="btn" style="white-space:nowrap; padding:8px 12px; border-radius:10px; cursor:pointer; background:transparent; color:var(--white);">💾 Guardar</button>
+                </div>
+                <div id="save-msg" class="msg" aria-live="polite" style="margin-top:6px; color:var(--muted); font-size:13px;"></div>
+
+                <div class="actions-row" style="display:flex; gap:8px; margin-top:8px;">
+                    <button id="generate-btn" class="btn primary" style="border:0; padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600; background:linear-gradient(90deg,var(--primary), #4dd3a7); color:#04221a;">Generar Rutina</button>
+                    <button id="export-btn" class="btn" disabled style="display:none; background:transparent; color:var(--white);">Descargar Excel</button>
+                </div>
+            </div>
+
+            <!-- Perfil rápido (sin cambios) -->
+            <div class="card small" style="background:var(--panel); padding:12px; border-radius:10px;">
+                <div class="card-title" style="font-weight:600; color:var(--muted); margin-bottom:8px; font-size:13px;">Perfil rápido</div>
+                <div class="profile-grid" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:8px; align-items:start;">
+                    <input id="name" placeholder="Nombre" />
+                    <input id="age" type="number" placeholder="Edad" min="10" max="120" />
+                    <select id="sex" aria-label="Sexo">
+                        <option value="M">M</option><option value="F">F</option><option value="O">Otro</option>
+                    </select>
+                    <input id="weight" type="number" placeholder="Peso (kg)" min="20" max="300" />
+                    <input id="height" type="number" placeholder="Altura (cm)" min="80" max="250" />
+                    <select id="level">
+                        <option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option>
+                    </select>
+                    <select id="goal">
+                        <option value="hipertrofia">Hipertrofia</option><option value="fuerza">Fuerza</option><option value="resistencia">Resistencia</option>
+                    </select>
+                    <select id="split">
+                        <option value="fullbody">Fullbody</option><option value="upper-lower">Upper-Lower</option><option value="push-pull-legs">PPL</option>
+                    </select>
+                    <input id="weeks" type="number" placeholder="Semanas" value="6" min="1" max="52" />
+                </div>
+                <div style="margin-top:8px;">
+                    <button id="save-profile" class="btn wide" style="width:100%; display:inline-block; text-align:center;">Guardar Perfil</button>
+                </div>
+                <div id="profile-msg" class="msg" aria-live="polite" style="margin-top:8px; color:var(--muted); font-size:13px;"></div>
+            </div>
+        </aside>
+
+        <!-- Main & right panels (kept as in your app) -->
+        <main class="fc-main" style="flex:1;">
+            <section class="groups">
+                <h3 class="section-title" style="color:var(--white);">Selecciona grupo y ejercicios</h3>
+                <div id="groups" class="groups-list hidden" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+                <div id="ex-list" class="ex-list hidden" style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;"></div>
+
+                <div id="result-container" class="result-card" style="display:none; margin-top:18px; background:linear-gradient(180deg,#071219,#0b1520); padding:12px; border-radius:10px;">
+                    <h4 id="result-title">Tu rutina</h4>
+                    <div id="routine-output"></div>
+                </div>
+            </section>
+        </main>
+
+        <aside class="fc-right" style="width:360px;">
+            <div class="card detail-card" style="background:var(--panel); padding:12px; border-radius:10px;">
+                <h3 id="guide-title" style="color:var(--white);">Guía de ejercicios</h3>
+                <div class="img-wrap" style="height:220px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:8px; background:linear-gradient(180deg,#0b1320,#081018); position:relative; margin-top:8px;">
+                    <img id="exercise-img" alt="Imagen del ejercicio" src="" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:6px;" />
+                    <div id="img-empty" class="img-empty" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+                        <div id="img-empty-text" style="color:var(--muted); font-size:15px;">Selecciona un ejercicio</div>
+                    </div>
+                </div>
+
+                <h4 id="exercise-title" style="margin-top:10px; color:var(--white);">Selecciona un ejercicio</h4>
+                <p id="exercise-desc" class="msg" style="margin-top:6px; color:var(--muted); font-size:13px;">Al seleccionar un ejercicio aparecerá su imagen (si está disponible) y un botón para ver la guía completa.</p>
+                <a id="exercise-link" href="#" target="_blank" class="btn wide" style="display:inline-block; text-align:center; margin-top:8px; visibility:hidden;">Ver ejercicio</a>
+
+                <div class="msg" style="margin-top:10px; color:var(--muted); font-size:13px;">
+                    (El panel para agregar ejercicios manualmente se oculta cuando usas la IA)
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- SheetJS for export (kept as before) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Application JS: your original code plus Save/Load/Delete routines via AJAX -->
+    <script>
+        (function(){
+            // --- Config API (kept) ---
+            const API_URL = 'http://127.0.0.1:8080/api/generate/ai';
+            const API_KEY = 'api_key_progra';
+
+            // --- EXERCISE_MEDIA and ALLOWED_EXERCISES ---
+            // (For brevity, assume you paste here your EXERCISE_MEDIA and ALLOWED_EXERCISES maps.)
+            // To avoid huge duplication in this snippet answer, we'll assume the maps are the same
+            // as in your original file. Replace the following placeholders with your actual objects
+            // or keep the ones already present in your project.
+            const EXERCISE_MEDIA = {
+                // 🔹 Pecho
+                "press-de-banca": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pressbanca.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#pressbanca"
+                },
+                "press-inclinado-con-mancuernas": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pressinclinado.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#pressinclinado"
+                },
+                "aperturas-con-mancuernas": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/apertura.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#aperturas"
+                },
+                "fondos-en-paralelas": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/fondo.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#fondo"
+                },
+
+                // 🔹 Espalda
+                "dominadas": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/dominadas.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#dominadas"
+                },
+                "remo-con-barra": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/remobarra.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#remo"
+                },
+                "peso-muerto": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pesomuerto.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#pesomuerto"
+                },
+                "jalón-al-pecho-en-polea": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/jalon.gif",
+                    page: "https://fitcoach.work.gd/?page_id=841#jalon"
+                },
+
+                // 🔹 Hombros
+                "press-militar": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pressmilitar.gif",
+                    page: "https://fitcoach.work.gd/?page_id=841#pressmilitar"
+                },
+                "elevaciones-laterales": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/elevaciones.gif",
+                    page: "https://fitcoach.work.gd/?page_id=841#laterales"
+                },
+                "pájaros-(elevaciones-posteriores)": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pajaros.webp",
+                    page: "https://fitcoach.work.gd/?page_id=841#pajaros"
+                },
+                "encogimientos-(shrugs)": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/encogimientos.jpg",
+                    page: "https://fitcoach.work.gd/?page_id=841#encogimientos"
+                },
+
+                // 🔹 Bíceps
+                "curl-con-barra": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/curlconbarra.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#curlbarra"
+                },
+                "curl-alternado-con-mancuernas": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/curlalternado.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#curlmancuerna"
+                },
+                "curl-en-banco-scott": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/curlbanco.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#scott"
+                },
+
+                // 🔹 Tríceps
+                "fondos-en-paralelas": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/fondo.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#fondo"
+                },
+                "extensión-en-polea": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/extensiontricep.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#polea"
+                },
+                "press-francés": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pressfrances.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#pressfrances"
+                },
+
+                // 🔹 Piernas
+                "sentadilla-con-barra": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/sentadilla.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#sentadilla"
+                },
+                "prensa-de-pierna": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/prensa.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#prensapierna"
+                },
+                "peso-muerto-rumano": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/pesomuertorumano.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#pesomuertorumano"
+                },
+                "zancadas-(lunges)": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/zancadas.gif",
+                    page: "https://fitcoach.work.gd/?page_id=841#zancadas"
+                },
+                "elevaciones-de-talones": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/talones.jpg",
+                    page: "https://fitcoach.work.gd/?page_id=841#elevaciontalones"
+                },
+
+                // 🔹 Abdomen/Core
+                "crunch-abdominal": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/crunch.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#crunch"
+                },
+                "plancha": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/plancha.gif",
+                    page: "https://fitcoach.work.gd/?page_id=841#plancha"
+                },
+                "elevaciones-de-piernas-colgado": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/elevacionpiernas.gif",
+                    page: "https://fitcoach.work.gd/?page_id=841#elevacionpiernas"
+                },
+                "rueda-abdominal": {
+                    image: "https://fitcoach.work.gd/wp-content/uploads/2025/09/rueda.jpeg",
+                    page: "https://fitcoach.work.gd/?page_id=841#rueda"
+                }
+            };
+            // Lista canónica de ejercicios (no es obligatorio actualizarla)
+            const ALLOWED_EXERCISES = {
+                "Pecho": ["Press de banca","Press inclinado con mancuernas","Aperturas con mancuernas","Fondos en paralelas"],
+                "Espalda": ["Dominadas","Remo con barra","Peso muerto","Jalón al pecho en polea"],
+                "Hombros": ["Press militar","Elevaciones laterales","Pájaros (elevaciones posteriores)","Encogimientos (shrugs)"],
+                "Bíceps": ["Curl con barra","Curl alternado con mancuernas","Curl en banco Scott"],
+                "Tríceps": ["Fondos en paralelas","Extensión en polea","Press francés"],
+                "Piernas": ["Sentadilla con barra","Prensa de pierna","Peso muerto rumano","Zancadas (lunges)","Elevaciones de talones"],
+                "Abdomen/Core": ["Crunch abdominal","Plancha","Elevaciones de piernas colgado","Rueda abdominal"]
+            };
+
+            // STATE
+            let lastRoutine = null;
+            let selectedExerciseBtn = null;
+
+            // DOM refs
+            const btnGenerate = document.getElementById('generate-btn');
+            const btnExport = document.getElementById('export-btn');
+            const btnSaveProfile = document.getElementById('save-profile');
+            const exList = document.getElementById('ex-list');
+            const groupsList = document.getElementById('groups');
+            const profileMsg = document.getElementById('profile-msg');
+            const routineOutput = document.getElementById('routine-output');
+            const resultContainer = document.getElementById('result-container');
+
+            const exerciseImg = document.getElementById('exercise-img');
+            const imgEmpty = document.getElementById('img-empty');
+            const exerciseTitle = document.getElementById('exercise-title');
+            const exerciseDesc = document.getElementById('exercise-desc');
+            const exerciseLink = document.getElementById('exercise-link');
+
+            // small helpers
+            function slugify(name){
+                return String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9\-]/g,'').replace(/\-+/g,'-').replace(/^\-|\-$/g,'');
+            }
+
+            function setRightPanelEmpty(){
+                exerciseImg.style.display = 'none';
+                imgEmpty.style.display = 'flex';
+                exerciseTitle.innerText = 'Selecciona un ejercicio';
+                exerciseDesc.innerText = 'Al seleccionar un ejercicio aparecerá su imagen (si está disponible) y un botón para ver la guía completa.';
+                exerciseLink.style.visibility = 'hidden';
+                exerciseLink.href = '#';
+            }
+
+            function updateRightPanelForExercise(name, group){
+                exerciseTitle.innerText = name;
+                exerciseDesc.innerText = `Grupo: ${group} · Ver la guía para técnica y variantes.`;
+                const slug = slugify(name);
+                const media = EXERCISE_MEDIA[slug];
+                if(media && media.image){
+                    exerciseImg.src = media.image;
+                    exerciseImg.alt = name;
+                    exerciseImg.style.display = 'block';
+                    imgEmpty.style.display = 'none';
+                } else { exerciseImg.style.display = 'none'; imgEmpty.style.display = 'flex'; }
+                if(media && media.page){
+                    exerciseLink.href = media.page;
+                    exerciseLink.style.visibility = 'visible';
+                } else {
+                    exerciseLink.href = `/ejercicios/${slug || 'detalle'}`;
+                    exerciseLink.style.visibility = 'visible';
+                }
+            }
+
+            // Collect & validate profile (kept as your implementation)
+            function collectProfile(){
+                return {
+                    profile: {
+                        name: document.getElementById('name').value.trim(),
+                        age: Number(document.getElementById('age').value || 0),
+                        sex: document.getElementById('sex').value,
+                        weight: Number(document.getElementById('weight').value || 0),
+                        heightCm: Number(document.getElementById('height').value || 0),
+                        level: document.getElementById('level').value,
+                        goal: document.getElementById('goal').value,
+                        split: document.getElementById('split').value,
+                        durationWeeks: Number(document.getElementById('weeks').value || 6)
+                    }
+                };
+            }
+            function validateProfile(reqObj){
+                const errors = [];
+                const p = reqObj.profile || {};
+                if(!p.name) errors.push('Nombre requerido');
+                if(!p.age || p.age < 10 || p.age > 120) errors.push('Edad inválida');
+                if(!p.weight || p.weight < 20) errors.push('Peso inválido');
+                if(!p.heightCm || p.heightCm < 80) errors.push('Altura inválida');
+                if(!p.durationWeeks || p.durationWeeks < 1) errors.push('Semanas inválidas');
+                return errors;
+            }
+
+            // ====== AI generate (kept) ======
+            async function onGenerate(){
+                const payload = collectProfile();
+                const errs = validateProfile(payload);
+                if(errs.length){ profileMsg.innerText = errs.join(' · '); return; }
+                profileMsg.innerText = 'Generando rutina con IA...';
+                btnGenerate.disabled = true; btnGenerate.textContent = 'Generando...';
+                try {
+                    const res = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type':'application/json', 'X-API-KEY': API_KEY },
+                        body: JSON.stringify(payload)
+                    });
+                    if(!res.ok){ const txt = await res.text(); throw new Error('Error servidor: ' + (txt || res.status)); }
+                    const data = await res.json();
+                    lastRoutine = data;
+                    renderRoutineFromGenerateResponse(data);
+                    profileMsg.innerText = 'Rutina generada correctamente';
+                    renderExercisesFromRoutine(data);
+                    btnExport.style.display = 'inline-block';
+                    btnExport.disabled = false;
+                } catch(err){ console.error(err); profileMsg.innerText = 'Error: ' + (err.message || 'sin detalle'); }
+                finally { btnGenerate.disabled = false; btnGenerate.textContent = 'Generar Rutina'; }
+            }
+
+            function renderRoutineFromGenerateResponse(genResp) {
+                resultContainer.style.display = 'block';
+                routineOutput.innerHTML = '';
+                const title = document.getElementById('result-title');
+                title.innerText = (genResp && genResp.title) ? genResp.title : 'Rutina generada';
+                if(!genResp || !Array.isArray(genResp.weeks)) { routineOutput.innerText = JSON.stringify(genResp, null, 2); return; }
+                genResp.weeks.forEach(w => {
+                    const weekWrap = document.createElement('div'); weekWrap.style.marginBottom = '12px';
+                    const weekTitle = document.createElement('h4'); weekTitle.innerText = 'Semana ' + (w.week || '?'); weekWrap.appendChild(weekTitle);
+                    (w.days || []).forEach(d => {
+                        const dayWrap = document.createElement('div'); dayWrap.style.margin = '8px 0';
+                        const dayHeader = document.createElement('div'); dayHeader.innerHTML = `<strong>Día ${d.dayOfWeek || '?'}</strong>`; dayWrap.appendChild(dayHeader);
+                        (d.items || []).forEach(it => {
+                            const exEl = document.createElement('div');
+                            exEl.style.padding='6px 8px'; exEl.style.borderRadius='8px'; exEl.style.background='rgba(255,255,255,0.02)'; exEl.style.marginTop='6px';
+                            exEl.innerText = `${it.exerciseName || it.exerciseId || 'Ejercicio'} · ${it.sets || ''}x ${it.reps || ''} · ${it.weightFormula || ''}`;
+                            dayWrap.appendChild(exEl);
+                        });
+                        weekWrap.appendChild(dayWrap);
+                    });
+                    routineOutput.appendChild(weekWrap);
+                });
+            }
+
+            function renderExercisesFromRoutine(genResp) {
+                const groups = new Map();
+                (genResp.weeks || []).forEach(w => { (w.days || []).forEach(d => { (d.items || []).forEach(it => {
+                    const groupName = (it.group || it.groupName) ? (it.group || it.groupName) : inferGroup(it.exerciseName || it.exerciseId);
+                    const exName = it.exerciseName || it.exerciseId || 'Ejercicio';
+                    const normGroup = normalizeGroup(groupName);
+                    if(!groups.has(normGroup)) groups.set(normGroup, new Set());
+                    groups.get(normGroup).add(exName);
+                }); }); });
+                const groupsContainer = document.getElementById('groups');
+                const exContainer = document.getElementById('ex-list'); groupsContainer.innerHTML = ''; exContainer.innerHTML = '';
+                if(groups.size === 0) { groupsContainer.innerText = 'No hay grupos en la rutina'; groupsContainer.classList.remove('hidden'); exContainer.classList.add('hidden'); return; }
+                groupsContainer.classList.remove('hidden'); exContainer.classList.remove('hidden');
+                groups.forEach((setNames, groupName) => {
+                    const pill = document.createElement('button'); pill.className = 'group-pill'; pill.textContent = groupName; pill.type='button';
+                    pill.onclick = () => {
+                        groupsContainer.querySelectorAll('.group-pill').forEach(g=>g.classList.remove('active')); pill.classList.add('active');
+                        exContainer.innerHTML = '';
+                        Array.from(setNames).forEach(en => {
+                            const btn = document.createElement('button'); btn.className = 'ex-btn'; btn.type = 'button'; btn.textContent = en; btn.dataset.group = groupName;
+                            btn.onclick = () => { if(selectedExerciseBtn) selectedExerciseBtn.classList.remove('active'); btn.classList.add('active'); selectedExerciseBtn = btn; updateRightPanelForExercise(en, groupName); };
+                            exContainer.appendChild(btn);
+                        });
+                    };
+                    groupsContainer.appendChild(pill);
+                });
+                const first = groupsContainer.querySelector('.group-pill'); if(first) first.click();
+            }
+
+            function normalizeGroup(g) {
+                if(!g) return 'General';
+                const map = {'pecho':'Pecho','espalda':'Espalda','hombro':'Hombros','hombros':'Hombros','bíceps':'Bíceps','biceps':'Bíceps','tríceps':'Tríceps','triceps':'Tríceps','pierna':'Piernas','piernas':'Piernas','core':'Abdomen/Core','abdomen':'Abdomen/Core'};
+                const key = String(g).toLowerCase();
+                return map[key] || (g.charAt(0).toUpperCase() + g.slice(1));
+            }
+            function inferGroup(exName) {
+                const n = (exName || '').toLowerCase();
+                if(/press de banca|press inclinado|aperturas|fondos/.test(n)) return 'Pecho';
+                if(/dominadas|remo|peso muerto|jalón/.test(n)) return 'Espalda';
+                if(/press militar|elevaciones laterales|pájaros|encogimientos|shrugs/.test(n)) return 'Hombros';
+                if(/curl con barra|curl alternado|scott|bíceps|bicep/.test(n)) return 'Bíceps';
+                if(/tríceps|triceps|extensión en polea|press francés|fondos/.test(n)) return 'Tríceps';
+                if(/sentadilla|prensa|zancadas|peso muerto rumano|elevaciones de talones|leg|squat/.test(n)) return 'Piernas';
+                if(/crunch|plancha|elevaciones de piernas|rueda abdominal|abdominal/.test(n)) return 'Abdomen/Core';
+                return 'General';
+            }
+
+            // Export (kept)
+            function onExport() {
+                if(!lastRoutine) return alert('No hay rutina para exportar');
+                const wb = XLSX.utils.book_new();
+                (lastRoutine.weeks || []).forEach(w => {
+                    (w.days || []).forEach(d => {
+                        const rows = [['Ejercicio','Sets','Reps','Peso/Formula','Notas']];
+                        (d.items || []).forEach(it => { rows.push([it.exerciseName || it.exerciseId || '', it.sets || '', it.reps || '', it.weightFormula || '', it.notes || '']); });
+                        const sheetName = `S${w.week || ''}_D${d.dayOfWeek || ''}`.substring(0,31) || 'Sheet1';
+                        const ws = XLSX.utils.aoa_to_sheet(rows);
+                        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    });
+                });
+                const fname = (lastRoutine.title || 'rutina') + '.xlsx';
+                XLSX.writeFile(wb, fname);
+            }
+
+            function onSaveProfile(){
+                const p = collectProfile().profile;
+                const errs = validateProfile({profile: p});
+                if(errs.length){ profileMsg.innerText = errs.join(' · '); return; }
+                profileMsg.innerText = 'Perfil guardado localmente';
+                localStorage.setItem('fitcoach_profile', JSON.stringify(p));
+            }
+
+            // ----- NEW: Save / Load / Delete routines via admin-ajax.php -----
+            function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+            async function loadSavedRoutines(){
+                const savedRoutinesDiv = document.getElementById('saved-routines');
+                if(!savedRoutinesDiv) return;
+                if(!window.FitCoachWP || !window.FitCoachWP.currentUser || !window.FitCoachWP.currentUser.logged){
+                    savedRoutinesDiv.innerHTML = "<em>Inicia sesión para guardar y cargar rutinas.</em>";
+                    return;
+                }
+                savedRoutinesDiv.innerHTML = 'Cargando...';
+                try {
+                    const url = `${window.FitCoachWP.ajaxUrl}?action=fitcoach_get_routines&nonce=${encodeURIComponent(window.FitCoachWP.nonce)}&user_id=${window.FitCoachWP.currentUser.id}`;
+                    const res = await fetch(url, { credentials: 'same-origin' });
+                    const json = await res.json();
+                    if(!json.success){ savedRoutinesDiv.innerHTML = "<em>No hay rutinas guardadas.</em>"; return; }
+                    const data = json.data || [];
+                    if(data.length === 0) { savedRoutinesDiv.innerHTML = "<em>No tienes rutinas guardadas aún.</em>"; return; }
+                    savedRoutinesDiv.innerHTML = '';
+                    data.forEach(r => {
+                        const card = document.createElement('div'); card.style.cssText = 'padding:8px; border-radius:8px; background:rgba(255,255,255,0.02); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;';
+                        const left = document.createElement('div'); left.innerHTML = `<strong>${escapeHtml(r.name)}</strong><div style="font-size:12px;color:var(--muted)">${r.created_at || ''}</div>`;
+                        const controls = document.createElement('div'); controls.style.display = 'flex'; controls.style.gap = '8px';
+                        const openBtn = document.createElement('button'); openBtn.textContent = '📂 Abrir'; openBtn.className = 'btn';
+                        openBtn.onclick = () => {
+                            try { const routine = r.routine; lastRoutine = routine; renderRoutineFromGenerateResponse(routine); renderExercisesFromRoutine(routine); document.getElementById('result-title').innerText = r.name; } catch(e){ console.error(e); }
+                        };
+                        const delBtn = document.createElement('button'); delBtn.textContent = '🗑️ Borrar'; delBtn.className = 'btn';
+                        delBtn.onclick = () => { if(!confirm('Borrar rutina "' + r.name + '"?')) return; deleteRoutine(r.id); };
+                        controls.appendChild(openBtn); controls.appendChild(delBtn);
+                        card.appendChild(left); card.appendChild(controls);
+                        savedRoutinesDiv.appendChild(card);
+                    });
+                } catch(err){ console.error(err); savedRoutinesDiv.innerHTML = "<em>Error cargando rutinas.</em>"; }
+            }
+
+            async function saveRoutine(){
+                const saveMsg = document.getElementById('save-msg');
+                saveMsg.innerText = '';
+                if(!window.FitCoachWP || !window.FitCoachWP.currentUser || !window.FitCoachWP.currentUser.logged){ saveMsg.innerText = 'Debes iniciar sesión para guardar rutinas.'; return; }
+                const routineNameInput = document.getElementById('routineName');
+                const saveBtn = document.getElementById('save-routine-btn');
+                const name = (routineNameInput && routineNameInput.value || '').trim();
+                if(!name){ saveMsg.innerText = 'Pon un nombre para la rutina.'; return; }
+                if(!lastRoutine){ saveMsg.innerText = 'Genera primero una rutina.'; return; }
+                saveBtn.disabled = true; saveBtn.textContent = 'Guardando...';
+                try {
+                    const body = new URLSearchParams();
+                    body.append('action','fitcoach_save_routine');
+                    body.append('nonce', window.FitCoachWP.nonce);
+                    body.append('user_id', window.FitCoachWP.currentUser.id);
+                    body.append('name', name);
+                    body.append('routine', JSON.stringify(lastRoutine));
+                    const res = await fetch(window.FitCoachWP.ajaxUrl, { method:'POST', body: body, credentials: 'same-origin' });
+                    const json = await res.json();
+                    if(json.success){ saveMsg.innerText = 'Rutina guardada.'; if(routineNameInput) routineNameInput.value = ''; await loadSavedRoutines(); }
+                    else { saveMsg.innerText = 'Error guardando: ' + (json.data || 'sin detalle'); }
+                } catch(err){ console.error(err); saveMsg.innerText = 'Error guardando rutina.'; }
+                finally { saveBtn.disabled = false; saveBtn.textContent = '💾 Guardar'; }
+            }
+
+            async function deleteRoutine(id){
+                try {
+                    const body = new URLSearchParams();
+                    body.append('action','fitcoach_delete_routine');
+                    body.append('nonce', window.FitCoachWP.nonce);
+                    body.append('user_id', window.FitCoachWP.currentUser.id);
+                    body.append('id', id);
+                    const res = await fetch(window.FitCoachWP.ajaxUrl, { method:'POST', body, credentials:'same-origin' });
+                    const json = await res.json();
+                    if(json.success){ await loadSavedRoutines(); } else { alert('Error borrando: ' + (json.data || 'sin detalle')); }
+                } catch(err){ console.error(err); alert('Error borrando rutina.'); }
+            }
+
+            // init: attach events and prefill profile
+            function init(){
+                groupsList.innerHTML = ''; exList.innerHTML = ''; groupsList.classList.add('hidden'); exList.classList.add('hidden'); setRightPanelEmpty();
+                btnGenerate.addEventListener('click', onGenerate);
+                btnExport.addEventListener('click', onExport);
+                btnSaveProfile.addEventListener('click', onSaveProfile);
+                const saveRoutineBtn = document.getElementById('save-routine-btn');
+                if(saveRoutineBtn) saveRoutineBtn.addEventListener('click', saveRoutine);
+
+                // prefill profile from localStorage
+                try {
+                    const p = localStorage.getItem('fitcoach_profile');
+                    if(p) {
+                        const obj = JSON.parse(p);
+                        if(obj.name) document.getElementById('name').value = obj.name;
+                        if(obj.age) document.getElementById('age').value = obj.age;
+                        if(obj.sex) document.getElementById('sex').value = obj.sex;
+                        if(obj.weight) document.getElementById('weight').value = obj.weight;
+                        if(obj.heightCm) document.getElementById('height').value = obj.heightCm;
+                        if(obj.level) document.getElementById('level').value = obj.level;
+                        if(obj.goal) document.getElementById('goal').value = obj.goal;
+                        if(obj.split) document.getElementById('split').value = obj.split;
+                        if(obj.durationWeeks) document.getElementById('weeks').value = obj.durationWeeks;
+                    }
+                } catch(e){ /* ignore */ }
+
+                // load saved routines if logged
+                try {
+                    if(window.FitCoachWP && window.FitCoachWP.currentUser && window.FitCoachWP.currentUser.logged) {
+                        loadSavedRoutines();
+                    } else {
+                        const savedRoutinesDiv = document.getElementById('saved-routines');
+                        if(savedRoutinesDiv) savedRoutinesDiv.innerHTML = "<em>Inicia sesión para guardar y cargar rutinas.</em>";
+                    }
+                } catch(e){}
+            }
+
+            // start
+            document.addEventListener('DOMContentLoaded', init);
+        })();
+    </script>
+
+</div>
